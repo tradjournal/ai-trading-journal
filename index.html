@@ -1,41 +1,53 @@
-</html>
 <!DOCTYPE html>
-<html>
+<html lang="mr">
 <head>
-    <title>Ultra-Pro AI Trading Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>OneFeb Investment - AI Trading Journal</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        body { font-family: 'Inter', sans-serif; background: #f4f7f6; margin: 0; padding: 15px; color: #333; }
         .container { max-width: 1200px; margin: auto; }
         
-        /* टॉप स्टॅट्स कार्ड्स */
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
-        .stat-card { background: white; padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .stat-card h4 { margin: 0; color: #666; font-size: 14px; text-transform: uppercase; }
-        .stat-card p { margin: 10px 0 0; font-size: 24px; font-weight: bold; }
+        /* १. रिस्पॉन्सिव्ह स्टॅट्स ग्रिड */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .stat-card h4 { margin: 0; color: #666; font-size: 11px; text-transform: uppercase; }
+        .stat-card p { margin: 5px 0 0; font-size: 18px; font-weight: bold; }
 
+        /* २. मुख्य ग्रिड लेआउट */
         .grid-main { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
         .full-width { grid-column: span 2; }
         
-        input, button { padding: 14px; margin: 8px 0; border-radius: 10px; border: 1px solid #ddd; width: 100%; font-size: 15px; }
+        input, button { padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; width: 100%; box-sizing: border-box; }
         .btn-save { background: #007bff; color: white; border: none; font-weight: bold; }
         .btn-ai { background: #28a745; color: white; border: none; font-weight: bold; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        /* ३. टेबलसाठी रिस्पॉन्सिव्ह कंटेनर */
+        .table-container { overflow-x: auto; width: 100%; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; min-width: 400px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
         .profit { color: #28a745; font-weight: bold; }
         .loss { color: #dc3545; font-weight: bold; }
+
+        /* ४. मोबाईलसाठी खास बदल (Media Queries) */
+        @media (max-width: 768px) {
+            .stats-grid { grid-template-columns: 1fr; } /* स्टॅट्स एका खाली एक दिसतील */
+            .grid-main { grid-template-columns: 1fr; } /* मेन सेक्शन एका खाली एक येतील */
+            .full-width { grid-column: span 1; }
+            h2 { font-size: 20px; text-align: center; }
+            .stat-card p { font-size: 22px; }
+        }
     </style>
 </head>
 <body onload="refreshDashboard()">
 
 <div class="container">
-    <h2 style="text-align:center; margin-bottom:30px;">💹 Professional AI Trading Manager</h2>
+    <h2 style="text-align:center; color:#1a202c; margin-bottom:20px;">OneFeb Investment AI</h2>
 
     <div class="stats-grid">
         <div class="stat-card">
-            <h4>Total Net P&L</h4>
+            <h4>Net P&L</h4>
             <p id="totalPNL">$0</p>
         </div>
         <div class="stat-card">
@@ -44,72 +56,71 @@
         </div>
         <div class="stat-card">
             <h4>Win Strategy</h4>
-            <p id="winRate">Calculating...</p>
+            <p id="winRate">0%</p>
         </div>
     </div>
 
     <div class="grid-main">
         <div class="card">
-            <h3>➕ नवीन ट्रेड नोंदवा</h3>
+            <h3>➕ नवीन ट्रेड</h3>
             <input type="text" id="symbol" placeholder="Symbol (उदा. Gold)">
-            <input type="number" id="profit" placeholder="नफा/तोटा (उदा. 50)">
-            <input type="text" id="reason" placeholder="ट्रेडचे कारण (उदा. Double Bottom)">
-            <button class="btn-save" onclick="saveTrade()">डेटाबेसमध्ये सुरक्षित करा</button>
+            <input type="number" id="profit" placeholder="P&L (उदा. 50)">
+            <input type="text" id="reason" placeholder="कारण (उदा. Support)">
+            <button class="btn-save" onclick="saveTrade()">सेव्ह करा</button>
         </div>
 
         <div class="card">
-            <h3>🤖 AI मेंटॉर विश्लेषण</h3>
-            <div id="aiAdvice" style="background:#f9f9f9; padding:15px; border-radius:10px; min-height:100px; border-left:5px solid #28a745;">
-                तुमच्या ट्रेडिंग सायकोलॉजीबद्दल जाणून घेण्यासाठी खाली क्लिक करा...
+            <h3>🤖 AI मेंटॉर</h3>
+            <div id="aiAdvice" style="background:#f8fafc; padding:12px; border-radius:8px; font-size:14px; min-height:80px; border-left:4px solid #28a745;">
+                AI अहवाल पाहण्यासाठी खाली क्लिक करा...
             </div>
-            <button class="btn-ai" onclick="askAI()">AI रिपोर्ट तयार करा</button>
+            <button class="btn-ai" onclick="askAI()">एनालिसिस करा</button>
         </div>
 
         <div class="card full-width">
-            <h3>📉 परफॉर्मन्स ग्राफ (Performance Flow)</h3>
-            <canvas id="performanceChart" height="100"></canvas>
+            <h3>📈 परफॉर्मन्स ग्राफ</h3>
+            <canvas id="performanceChart" height="150"></canvas>
         </div>
 
         <div class="card full-width">
-            <h3>📜 ट्रेड इतिहास (Real-time Database)</h3>
-            <table id="tradeTable">
-                <thead>
-                    <tr>
-                        <th>Symbol</th>
-                        <th>Profit/Loss ($)</th>
-                        <th>Reason</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+            <h3>📜 ट्रेड इतिहास</h3>
+            <div class="table-container">
+                <table id="tradeTable">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Profit/Loss</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
     let myChart;
+    // तुमची Render किंवा Live URL खालील अवतरण चिन्हात टाका (जेव्हा तुम्ही लाईव्ह कराल)
+    const API_URL = "http://ai-trading-journal.onrender.com"; 
 
     async function saveTrade() {
         let symbol = document.getElementById("symbol").value;
         let profit = document.getElementById("profit").value;
         let reason = document.getElementById("reason").value;
+        if(!symbol || !profit) return;
 
-        if(!symbol || !profit) { alert("कृपया सर्व माहिती भरा!"); return; }
-
-        await fetch("http://127.0.0.1:8000/add_trade", {
+        await fetch(`${API_URL}/add_trade`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ "symbol": symbol, "profit": parseFloat(profit), "reason": reason })
         });
-
-        document.getElementById("symbol").value = "";
-        document.getElementById("profit").value = "";
-        document.getElementById("reason").value = "";
         refreshDashboard();
     }
 
     async function refreshDashboard() {
-        let response = await fetch("http://127.0.0.1:8000/get_trades");
+        let response = await fetch(`${API_URL}/get_trades`);
         let trades = await response.json();
         
         let netProfit = 0;
@@ -120,59 +131,43 @@
         trades.forEach(t => {
             netProfit += t.profit;
             if(t.profit > 0) winCount++;
-            
-            let row = `<tr>
-                <td>${t.symbol}</td>
-                <td class="${t.profit >= 0 ? 'profit' : 'loss'}">${t.profit >= 0 ? '+' + t.profit : t.profit}</td>
-                <td>${t.reason}</td>
-            </tr>`;
+            let row = `<tr><td>${t.symbol}</td><td class="${t.profit >= 0 ? 'profit' : 'loss'}">${t.profit}</td><td>${t.reason}</td></tr>`;
             tbody.innerHTML += row;
         });
 
-        // स्टॅट्स अपडेट करा
-        document.getElementById("totalPNL").innerText = (netProfit >= 0 ? '+$' : '$') + netProfit;
-        document.getElementById("totalPNL").className = netProfit >= 0 ? 'profit' : 'loss';
+        document.getElementById("totalPNL").innerText = "$" + netProfit;
         document.getElementById("totalCount").innerText = trades.length;
-        
-        let winRate = trades.length > 0 ? ((winCount / trades.length) * 100).toFixed(1) : 0;
-        document.getElementById("winRate").innerText = winRate + "% Success";
+        document.getElementById("winRate").innerText = (trades.length > 0 ? ((winCount / trades.length) * 100).toFixed(0) : 0) + "%";
 
         updateChart(trades);
     }
 
     function updateChart(trades) {
         let ctx = document.getElementById('performanceChart').getContext('2d');
-        let labels = trades.map((_, i) => "T" + (i + 1));
-        let data = trades.map(t => t.profit);
-
         if (myChart) myChart.destroy();
-
         myChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,
+                labels: trades.map((_, i) => i + 1),
                 datasets: [{
                     label: 'P&L Curve',
-                    data: data,
+                    data: trades.map(t => t.profit),
                     borderColor: '#007bff',
-                    borderWidth: 3,
-                    pointRadius: 5,
                     backgroundColor: 'rgba(0, 123, 255, 0.1)',
                     fill: true,
                     tension: 0.3
                 }]
             },
-            options: { responsive: true, scales: { y: { beginAtZero: false } } }
+            options: { responsive: true, maintainAspectRatio: false }
         });
     }
 
     async function askAI() {
-        document.getElementById("aiAdvice").innerText = "AI तुमच्या डेटाबेसचा सखोल अभ्यास करत आहे...";
-        let response = await fetch("http://127.0.0.1:8000/get_ai_analysis");
+        document.getElementById("aiAdvice").innerText = "AI विश्लेषण करत आहे...";
+        let response = await fetch(`${API_URL}/get_ai_analysis`);
         let data = await response.json();
         document.getElementById("aiAdvice").innerHTML = data.advice;
     }
 </script>
-
 </body>
 </html>
