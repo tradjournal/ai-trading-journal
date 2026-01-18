@@ -2,172 +2,96 @@
 <html lang="mr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>OneFeb Investment - AI Trading Journal</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OneFeb Investment - AI Terminal</title>
+    <script src="https://s3.tradingview.com/tv.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f4f7f6; margin: 0; padding: 15px; color: #333; }
-        .container { max-width: 1200px; margin: auto; }
-        
-        /* १. रिस्पॉन्सिव्ह स्टॅट्स ग्रिड */
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
-        .stat-card { background: white; padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .stat-card h4 { margin: 0; color: #666; font-size: 11px; text-transform: uppercase; }
-        .stat-card p { margin: 5px 0 0; font-size: 18px; font-weight: bold; }
-
-        /* २. मुख्य ग्रिड लेआउट */
-        .grid-main { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-        .full-width { grid-column: span 2; }
-        
-        input, button { padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; width: 100%; box-sizing: border-box; }
-        .btn-save { background: #007bff; color: white; border: none; font-weight: bold; }
-        .btn-ai { background: #28a745; color: white; border: none; font-weight: bold; }
-        
-        /* ३. टेबलसाठी रिस्पॉन्सिव्ह कंटेनर */
-        .table-container { overflow-x: auto; width: 100%; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; min-width: 400px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
-        .profit { color: #28a745; font-weight: bold; }
-        .loss { color: #dc3545; font-weight: bold; }
-
-        /* ४. मोबाईलसाठी खास बदल (Media Queries) */
-        @media (max-width: 768px) {
-            .stats-grid { grid-template-columns: 1fr; } /* स्टॅट्स एका खाली एक दिसतील */
-            .grid-main { grid-template-columns: 1fr; } /* मेन सेक्शन एका खाली एक येतील */
-            .full-width { grid-column: span 1; }
-            h2 { font-size: 20px; text-align: center; }
-            .stat-card p { font-size: 22px; }
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; text-align: center; }
+        .dashboard { max-width: 1200px; margin: auto; }
+        #chart-container { height: 500px; margin: 20px 0; border-radius: 12px; overflow: hidden; border: 1px solid #30363d; }
+        .ai-box { background: #161b22; border: 1px solid #30363d; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: left; }
+        .btns { display: flex; gap: 15px; justify-content: center; margin: 20px 0; }
+        button { padding: 15px 35px; font-size: 18px; font-weight: bold; cursor: pointer; border: none; border-radius: 8px; transition: 0.3s; }
+        .buy { background: #238636; color: white; }
+        .sell { background: #da3633; color: white; }
+        .buy:hover { background: #2ea043; }
+        .sell:hover { background: #f85149; }
+        .status-badge { color: #58a6ff; font-size: 14px; }
     </style>
 </head>
-<body onload="refreshDashboard()">
+<body>
+    <div class="dashboard">
+        <h1>OneFeb AI Terminal <span class="status-badge">● Live</span></h1>
 
-<div class="container">
-    <h2 style="text-align:center; color:#1a202c; margin-bottom:20px;">OneFeb Investment AI</h2>
-
-    <div class="stats-grid">
-        <div class="stat-card">
-            <h4>Net P&L</h4>
-            <p id="totalPNL">$0</p>
+        <div class="ai-box">
+            <h3>🤖 OneFeb AI मेंटॉर सल्ला:</h3>
+            <p id="ai-advice">तुमचा पहिला ट्रेड नोंदवा, AI तुमचे विश्लेषण करण्यास तयार आहे...</p>
+            <button onclick="getAIAdvice()" style="font-size: 14px; padding: 8px 15px; background: #21262d; color: #58a6ff; border: 1px solid #30363d;">विश्लेषण अपडेट करा</button>
         </div>
-        <div class="stat-card">
-            <h4>Total Trades</h4>
-            <p id="totalCount">0</p>
-        </div>
-        <div class="stat-card">
-            <h4>Win Strategy</h4>
-            <p id="winRate">0%</p>
-        </div>
-    </div>
-
-    <div class="grid-main">
-        <div class="card">
-            <h3>➕ नवीन ट्रेड</h3>
-            <input type="text" id="symbol" placeholder="Symbol (उदा. Gold)">
-            <input type="number" id="profit" placeholder="P&L (उदा. 50)">
-            <input type="text" id="reason" placeholder="कारण (उदा. Support)">
-            <button class="btn-save" onclick="saveTrade()">सेव्ह करा</button>
-        </div>
-
-        <div class="card">
-            <h3>🤖 AI मेंटॉर</h3>
-            <div id="aiAdvice" style="background:#f8fafc; padding:12px; border-radius:8px; font-size:14px; min-height:80px; border-left:4px solid #28a745;">
-                AI अहवाल पाहण्यासाठी खाली क्लिक करा...
-            </div>
-            <button class="btn-ai" onclick="askAI()">एनालिसिस करा</button>
-        </div>
-
-        <div class="card full-width">
-            <h3>📈 परफॉर्मन्स ग्राफ</h3>
-            <canvas id="performanceChart" height="150"></canvas>
-        </div>
-
-        <div class="card full-width">
-            <h3>📜 ट्रेड इतिहास</h3>
-            <div class="table-container">
-                <table id="tradeTable">
-                    <thead>
-                        <tr>
-                            <th>Symbol</th>
-                            <th>Profit/Loss</th>
-                            <th>Reason</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    let myChart;
-    // तुमची Render किंवा Live URL खालील अवतरण चिन्हात टाका (जेव्हा तुम्ही लाईव्ह कराल)
-    const API_URL = "http://ai-trading-journal.onrender.com"; 
-
-    async function saveTrade() {
-        let symbol = document.getElementById("symbol").value;
-        let profit = document.getElementById("profit").value;
-        let reason = document.getElementById("reason").value;
-        if(!symbol || !profit) return;
-
-        await fetch(`${API_URL}/add_trade`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ "symbol": symbol, "profit": parseFloat(profit), "reason": reason })
-        });
-        refreshDashboard();
-    }
-
-    async function refreshDashboard() {
-        let response = await fetch(`${API_URL}/get_trades`);
-        let trades = await response.json();
         
-        let netProfit = 0;
-        let winCount = 0;
-        let tbody = document.querySelector("#tradeTable tbody");
-        tbody.innerHTML = "";
+        <div id="chart-container"></div>
 
-        trades.forEach(t => {
-            netProfit += t.profit;
-            if(t.profit > 0) winCount++;
-            let row = `<tr><td>${t.symbol}</td><td class="${t.profit >= 0 ? 'profit' : 'loss'}">${t.profit}</td><td>${t.reason}</td></tr>`;
-            tbody.innerHTML += row;
+        <div class="btns">
+            <button class="buy" onclick="sendOrder('BUY')">BUY XAUUSD</button>
+            <button class="sell" onclick="sendOrder('SELL')">SELL XAUUSD</button>
+        </div>
+
+        <div class="ai-box">
+            <h3>📜 ट्रेड इतिहास</h3>
+            <div id="trade-history">ट्रेड्स लोड होत आहेत...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://ai-trading-journal.onrender.com";
+        const USERNAME = localStorage.getItem("username") || "demo_user";
+
+        // TradingView Widget
+        new TradingView.widget({
+            "autosize": true,
+            "symbol": "FX:XAUUSD",
+            "interval": "5",
+            "theme": "dark",
+            "style": "1",
+            "locale": "in",
+            "container_id": "chart-container"
         });
 
-        document.getElementById("totalPNL").innerText = "$" + netProfit;
-        document.getElementById("totalCount").innerText = trades.length;
-        document.getElementById("winRate").innerText = (trades.length > 0 ? ((winCount / trades.length) * 100).toFixed(0) : 0) + "%";
+        // AI सल्ला मिळवण्यासाठी
+        async function getAIAdvice() {
+            document.getElementById("ai-advice").innerText = "AI विश्लेषण करत आहे...";
+            const res = await fetch(`${API_URL}/get_ai_mentor/${USERNAME}`);
+            const data = await res.json();
+            document.getElementById("ai-advice").innerText = data.advice;
+        }
 
-        updateChart(trades);
-    }
+        // ऑर्डर पाठवण्यासाठी
+        async function sendOrder(action) {
+            await fetch(`${API_URL}/sync_trade`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: USERNAME,
+                    symbol: "XAUUSD",
+                    profit: 0,
+                    action: action,
+                    volume: 0.01
+                })
+            });
+            alert(action + " ऑर्डर MT5 ब्रिज कडे पाठवली!");
+            loadHistory();
+        }
 
-    function updateChart(trades) {
-        let ctx = document.getElementById('performanceChart').getContext('2d');
-        if (myChart) myChart.destroy();
-        myChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: trades.map((_, i) => i + 1),
-                datasets: [{
-                    label: 'P&L Curve',
-                    data: trades.map(t => t.profit),
-                    borderColor: '#007bff',
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-    }
+        // इतिहास लोड करण्यासाठी
+        async function loadHistory() {
+            const res = await fetch(`${API_URL}/history/${USERNAME}`);
+            const data = await res.json();
+            document.getElementById("trade-history").innerHTML = data.map(t => 
+                `<p>✅ ${t.action} | ${t.symbol} | Profit: ${t.profit}</p>`
+            ).join("") || "अजून कोणताही ट्रेड नाही.";
+        }
 
-    async function askAI() {
-        document.getElementById("aiAdvice").innerText = "AI विश्लेषण करत आहे...";
-        let response = await fetch(`${API_URL}/get_ai_analysis`);
-        let data = await response.json();
-        document.getElementById("aiAdvice").innerHTML = data.advice;
-    }
-</script>
+        window.onload = loadHistory;
+    </script>
 </body>
 </html>
