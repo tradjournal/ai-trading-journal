@@ -2,96 +2,129 @@
 <html lang="mr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OneFeb Investment - AI Terminal</title>
-    <script src="https://s3.tradingview.com/tv.js"></script>
+    <title>OneFeb AI Journal & Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; text-align: center; }
-        .dashboard { max-width: 1200px; margin: auto; }
-        #chart-container { height: 500px; margin: 20px 0; border-radius: 12px; overflow: hidden; border: 1px solid #30363d; }
-        .ai-box { background: #161b22; border: 1px solid #30363d; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: left; }
-        .btns { display: flex; gap: 15px; justify-content: center; margin: 20px 0; }
-        button { padding: 15px 35px; font-size: 18px; font-weight: bold; cursor: pointer; border: none; border-radius: 8px; transition: 0.3s; }
-        .buy { background: #238636; color: white; }
-        .sell { background: #da3633; color: white; }
-        .buy:hover { background: #2ea043; }
-        .sell:hover { background: #f85149; }
-        .status-badge { color: #58a6ff; font-size: 14px; }
+        body { font-family: 'Poppins', sans-serif; background: #f0f2f5; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: auto; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: #1a73e8; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        .filter-btns { display: flex; gap: 10px; margin-bottom: 15px; justify-content: center; }
+        .filter-btns button { width: auto; padding: 8px 15px; background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
+        .filter-btns button.active { background: #1a73e8; color: white; }
+        canvas { background: white; border-radius: 10px; padding: 10px; }
     </style>
 </head>
 <body>
-    <div class="dashboard">
-        <h1>OneFeb AI Terminal <span class="status-badge">● Live</span></h1>
-
-        <div class="ai-box">
-            <h3>🤖 OneFeb AI मेंटॉर सल्ला:</h3>
-            <p id="ai-advice">तुमचा पहिला ट्रेड नोंदवा, AI तुमचे विश्लेषण करण्यास तयार आहे...</p>
-            <button onclick="getAIAdvice()" style="font-size: 14px; padding: 8px 15px; background: #21262d; color: #58a6ff; border: 1px solid #30363d;">विश्लेषण अपडेट करा</button>
-        </div>
-        
-        <div id="chart-container"></div>
-
-        <div class="btns">
-            <button class="buy" onclick="sendOrder('BUY')">BUY XAUUSD</button>
-            <button class="sell" onclick="sendOrder('SELL')">SELL XAUUSD</button>
+    <div class="container">
+        <div class="card">
+            <h2>📈 परफॉर्मन्स ग्राफ (Equity Curve)</h2>
+            <div class="filter-btns">
+                <button onclick="updateChart('trade')" id="btn-trade" class="active">Trade</button>
+                <button onclick="updateChart('day')" id="btn-day">Day</button>
+                <button onclick="updateChart('month')" id="btn-month">Month</button>
+                <button onclick="updateChart('year')" id="btn-year">Year</button>
+            </div>
+            <canvas id="equityChart"></canvas>
         </div>
 
-        <div class="ai-box">
-            <h3>📜 ट्रेड इतिहास</h3>
-            <div id="trade-history">ट्रेड्स लोड होत आहेत...</div>
+        <div class="card">
+            <h2>📝 नवीन ट्रेड नोंदवा</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <input type="text" id="symbol" placeholder="Symbol (उदा. Gold)">
+                <input type="number" id="entry" placeholder="Entry Price">
+                <input type="number" id="exit" placeholder="Exit Price">
+                <input type="number" id="sl" placeholder="Stop Loss">
+                <input type="number" id="tp" placeholder="Take Profit">
+            </div>
+            <textarea id="reason" placeholder="ट्रेड घेण्याचे कारण..."></textarea>
+            <button onclick="saveTrade()">ट्रेड सेव्ह करा</button>
+        </div>
+
+        <div class="card" style="background: #e7f3ff; border-left: 5px solid #1a73e8;">
+            <h3>🤖 OneFeb AI सल्ला:</h3>
+            <p id="ai-advice">विश्लेषण लोड होत आहे...</p>
         </div>
     </div>
 
     <script>
-        const API_URL = "https://ai-trading-journal.onrender.com";
-        const USERNAME = localStorage.getItem("username") || "demo_user";
+        const API = "https://ai-trading-journal.onrender.com";
+        let allTrades = [];
+        let myChart;
 
-        // TradingView Widget
-        new TradingView.widget({
-            "autosize": true,
-            "symbol": "FX:XAUUSD",
-            "interval": "5",
-            "theme": "dark",
-            "style": "1",
-            "locale": "in",
-            "container_id": "chart-container"
-        });
-
-        // AI सल्ला मिळवण्यासाठी
-        async function getAIAdvice() {
-            document.getElementById("ai-advice").innerText = "AI विश्लेषण करत आहे...";
-            const res = await fetch(`${API_URL}/get_ai_mentor/${USERNAME}`);
-            const data = await res.json();
-            document.getElementById("ai-advice").innerText = data.advice;
+        async function saveTrade() {
+            const data = {
+                symbol: document.getElementById('symbol').value,
+                entry_price: parseFloat(document.getElementById('entry').value),
+                exit_price: parseFloat(document.getElementById('exit').value),
+                stop_loss: parseFloat(document.getElementById('sl').value),
+                take_profit: parseFloat(document.getElementById('tp').value),
+                reason: document.getElementById('reason').value
+            };
+            await fetch(`${API}/add_trade`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            alert("ट्रेड जतन झाला!");
+            location.reload();
         }
 
-        // ऑर्डर पाठवण्यासाठी
-        async function sendOrder(action) {
-            await fetch(`${API_URL}/sync_trade`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    username: USERNAME,
-                    symbol: "XAUUSD",
-                    profit: 0,
-                    action: action,
-                    volume: 0.01
-                })
+        async function loadData() {
+            const res = await fetch(`${API}/history`);
+            allTrades = await res.json();
+            updateChart('trade');
+            
+            const aiRes = await fetch(`${API}/get_ai_advice`);
+            const aiData = await aiRes.json();
+            document.getElementById('ai-advice').innerText = aiData.advice;
+        }
+
+        function updateChart(type) {
+            document.querySelectorAll('.filter-btns button').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + type).classList.add('active');
+
+            let labels = [];
+            let dataPoints = [0]; // 0 पासून सुरुवात
+            let currentSum = 0;
+
+            if (type === 'trade') {
+                allTrades.forEach((t, i) => {
+                    currentSum += t.profit_loss;
+                    dataPoints.push(currentSum);
+                    labels.push("Trade " + (i + 1));
+                });
+            } else {
+                // Day, Month, Year नुसार ग्रुपिंग लॉजिक
+                let grouped = {};
+                allTrades.forEach(t => {
+                    let key = t.date; // Default Day
+                    if(type === 'month') key = t.date.substring(0, 7);
+                    if(type === 'year') key = t.date.substring(0, 4);
+                    grouped[key] = (grouped[key] || 0) + t.profit_loss;
+                });
+                Object.keys(grouped).sort().forEach(key => {
+                    currentSum += grouped[key];
+                    dataPoints.push(currentSum);
+                    labels.push(key);
+                });
+            }
+
+            if(myChart) myChart.destroy();
+            const ctx = document.getElementById('equityChart').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ["Start", ...labels],
+                    datasets: [{
+                        label: 'Cumulative P/L',
+                        data: dataPoints,
+                        borderColor: '#1a73e8',
+                        backgroundColor: 'rgba(26, 115, 232, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                }
             });
-            alert(action + " ऑर्डर MT5 ब्रिज कडे पाठवली!");
-            loadHistory();
         }
-
-        // इतिहास लोड करण्यासाठी
-        async function loadHistory() {
-            const res = await fetch(`${API_URL}/history/${USERNAME}`);
-            const data = await res.json();
-            document.getElementById("trade-history").innerHTML = data.map(t => 
-                `<p>✅ ${t.action} | ${t.symbol} | Profit: ${t.profit}</p>`
-            ).join("") || "अजून कोणताही ट्रेड नाही.";
-        }
-
-        window.onload = loadHistory;
+        window.onload = loadData;
     </script>
 </body>
 </html>
