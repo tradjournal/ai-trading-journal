@@ -1,103 +1,62 @@
-import google.generativeai as genai
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
-import uvicorn
-import sqlite3
+import google.generativeai as genai
+import os
 
 app = FastAPI()
 
-# ==========================================
-# तुमची API KEY इथे टाका
-# ==========================================
-GOOGLE_API_KEY = "AIzaSyA4MVsPp8EB4uVFRcIe0uoOmqnDry_OrK0"  # <-- इथे तुमची तीच Key टाका
-
-genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-2.5-flash-lite') # किंवा list मधील नाव
-
+# CORS सेटिंग (तुमच्या डोमेनवरून ॲप एक्सेस करण्यासाठी आवश्यक)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- DATABASE SETUP (हे कोड आपोआप डेटाबेस बनवेल) ---
-def init_db():
-    conn = sqlite3.connect("trading_journal.db")
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS trades (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            symbol TEXT,
-            profit REAL,
-            reason TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# तुमची API Key (Render वर सुरक्षित ठेवणे चांगले, पण सध्या कोडिंगमध्ये)
+genai.configure(api_key="AIzaSyA4MVsPp8EB4uVFRcIe0uoOmqnDry_OrK0") # तुमची खरी की इथे टाका
 
-init_db() # ॲप चालू होताना टेबल बनवणे
+# डेटा स्टोअर करण्यासाठी तात्पुरती लिस्ट (Data Persistence साठी भविष्यात Database वापरू)
+trades = []
 
 class Trade(BaseModel):
     symbol: str
     profit: float
     reason: str
 
+# १. होम पेजसाठी रूट (हेच तुमचे index.html उघडेल)
+@app.get("/")
+async def read_index():
+    return FileResponse('index.html')
+
+# २. नवीन ट्रेड सेव्ह करण्यासाठी
 @app.post("/add_trade")
-def add_trade(trade: Trade):
-    conn = sqlite3.connect("trading_journal.db")
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO trades (symbol, profit, reason) VALUES (?, ?, ?)", 
-                   (trade.symbol, trade.profit, trade.reason))
-    conn.commit()
-    conn.close()
-    return {"message": "Trade Database मध्ये सेव्ह झाला!"}
+async def add_trade(trade: Trade):
+    trades.append(trade)
+    return {"message": "Trade saved successfully"}
 
+# ३. सर्व ट्रेड्स पाहण्यासाठी
 @app.get("/get_trades")
-def get_trades():
-    conn = sqlite3.connect("trading_journal.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT symbol, profit, reason FROM trades")
-    trades = cursor.fetchall() # सर्व डेटा आणणे
-    conn.close()
-    
-    # डेटा लिस्ट स्वरूपात पाठवणे
-    return [{"symbol": t[0], "profit": t[1], "reason": t[2]} for t in trades]
+async def get_trades():
+    return trades
 
+# ४. AI एनालिसिस करण्यासाठी
 @app.get("/get_ai_analysis")
-def analyze():
-    conn = sqlite3.connect("trading_journal.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT symbol, profit, reason FROM trades")
-    trades = cursor.fetchall()
-    conn.close()
-
+async def get_ai_analysis():
     if not trades:
-        return {"advice": "डेटाबेस रिकामी आहे. पहिले काही ट्रेड्स ॲड करा."}
+        return {"advice": "कृपया आधी काही ट्रेड्स ॲड करा."}
     
-    total_profit = sum(t[1] for t in trades)
+    # AI साठी प्रॉम्ट तयार करणे
+    trade_summary = str([f"{t.symbol}: {t.profit} ({t.reason})" for t in trades])
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    response = model.generate_content(f"मी हे ट्रेड्स केले आहेत: {trade_summary}. माझे रिस्क मॅनेजमेंट आणि सायकॉलॉजी कशी आहे ते सांगा आणि मला सुधारण्यासाठी मराठीत सल्ला द्या.")
     
-    # AI साठी प्रश्न
-    trades_text = "\n".join([f"Symbol={t[0]}, P&L={t[1]}, Reason={t[2]}" for t in trades])
-    
-    prompt = f"""
-    Acting as a strict Trading Coach, analyze these last trades:
-    {trades_text}
-    
-    Total P&L: {total_profit}
-    
-    Give me advice in MARATHI (2 lines max) focusing on mistakes.
-    """
-    
-    try:
-        response = model.generate_content(prompt)
-        advice = response.text
-    except:
-        advice = "AI Error. API Key तपासा."
-
-    return {"total_profit": total_profit, "advice": advice}
+    return {"advice": response.text}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+    import uvicorn
+    # Render साठी पोर्ट १०००० वापरणे अनिवार्य आहे
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
