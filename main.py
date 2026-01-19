@@ -1,76 +1,75 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from pydantic import BaseModel
 from datetime import datetime
 import google.generativeai as genai
 
-# AI Configuration
+# 1. AI Configuration
 genai.configure(api_key="AIzaSyDMLlj5P6PMYaTxoSoL6urtovMgpnJTRKE")
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Database Setup
-SQLALCHEMY_DATABASE_URL = "sqlite:///./trading_journal.db"
+# 2. Database Setup
+SQLALCHEMY_DATABASE_URL = "sqlite:///./onefeb_v3.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-class Trade(Base):
-    __tablename__ = "trades"
+class DetailedTrade(Base):
+    __tablename__ = "detailed_trades"
     id = Column(Integer, primary_key=True, index=True)
     symbol = Column(String)
+    capital_used = Column(Float)
     entry_price = Column(Float)
-    exit_price = Column(Float)
-    stop_loss = Column(Float)
-    take_profit = Column(Float)
-    profit_loss = Column(Float)
-    reason = Column(String)
-    date = Column(String) # YYYY-MM-DD format sathi
+    exits = Column(JSON)  # Multiple exit details
+    total_pl = Column(Float)
+    strategy = Column(String)
+    date = Column(DateTime, default=datetime.utcnow)
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-class TradeCreate(BaseModel):
+class TradeIn(BaseModel):
     symbol: str
-    entry_price: float
-    exit_price: float
-    stop_loss: float
-    take_profit: float
-    reason: str
+    capital: float
+    entry: float
+    exits: list
+    strategy: str
 
 @app.get("/")
-async def home():
+async def serve_home():
     return FileResponse('index.html')
 
-@app.post("/add_trade")
-def add_trade(trade: TradeCreate):
+@app.post("/add_trade_v2")
+def add_trade(data: TradeIn):
     db = SessionLocal()
-    pl = round(trade.exit_price - trade.entry_price, 2)
-    today = datetime.now().strftime("%Y-%m-%d")
+    # P&L Calculation for Multiple Exits
+    total_exit_val = sum([float(e['price']) * float(e['qty']) for e in data.exits])
+    total_qty = sum([float(e['qty']) for e in data.exits])
+    pl = total_exit_val - (data.entry * total_qty)
     
-    new_trade = Trade(
-        symbol=trade.symbol, entry_price=trade.entry_price, exit_price=trade.exit_price,
-        stop_loss=trade.stop_loss, take_profit=trade.take_profit,
-        profit_loss=pl, reason=trade.reason, date=today
+    new_trade = DetailedTrade(
+        symbol=data.symbol, capital_used=data.capital, entry_price=data.entry,
+        exits=data.exits, total_pl=round(pl, 2), strategy=data.strategy
     )
     db.add(new_trade)
     db.commit()
-    return {"message": "Saved"}
+    return {"status": "Success", "pl": pl}
 
-@app.get("/history")
-def history():
+@app.get("/history_v2")
+def get_history():
     db = SessionLocal()
-    return db.query(Trade).all()
+    return db.query(DetailedTrade).order_by(DetailedTrade.date.desc()).all()
 
-@app.get("/get_ai_advice")
-def get_ai_advice():
+@app.get("/ai_mentor_advice")
+def ai_advice():
     db = SessionLocal()
-    trades = db.query(Trade).all()
-    if not trades: return {"advice": "ट्रेड्स ॲड करा."}
-    summary = str([f"{t.symbol}: {t.profit_loss}" for t in trades[-5:]])
-    response = model.generate_content(f"माझे ट्रेड्स: {summary}. मराठीत सायकोलोजी सल्ला द्या.")
+    trades = db.query(DetailedTrade).all()
+    if not trades: return {"advice": "Trades add kara."}
+    summary = str([f"{t.symbol}: {t.total_pl}" for t in trades[-5:]])
+    response = model.generate_content(f"Maze trades: {summary}. Mazya trading psychology baddal Marathi madhe salla dya.")
     return {"advice": response.text}

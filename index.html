@@ -2,129 +2,137 @@
 <html lang="mr">
 <head>
     <meta charset="UTF-8">
-    <title>OneFeb AI Journal & Analytics</title>
+    <title>OneFeb AI Journal - V3</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Poppins', sans-serif; background: #f0f2f5; padding: 20px; color: #333; }
-        .container { max-width: 800px; margin: auto; }
-        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        input, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: #1a73e8; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        .filter-btns { display: flex; gap: 10px; margin-bottom: 15px; justify-content: center; }
-        .filter-btns button { width: auto; padding: 8px 15px; background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
-        .filter-btns button.active { background: #1a73e8; color: white; }
-        canvas { background: white; border-radius: 10px; padding: 10px; }
+        :root { --bg: #0d1117; --card: #161b22; --accent: #58a6ff; }
+        body { font-family: sans-serif; background: var(--bg); color: white; margin: 0; display: flex; }
+        .sidebar { width: 220px; background: var(--card); height: 100vh; padding: 20px; border-right: 1px solid #30363d; position: fixed; }
+        .main { margin-left: 260px; padding: 20px; width: calc(100% - 260px); }
+        .card { background: var(--card); padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #30363d; }
+        input, select, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid #333; background: #0d1117; color: white; }
+        .page { display: none; }
+        .active { display: block; }
+        .nav-item { cursor: pointer; padding: 10px; border-radius: 5px; margin-bottom: 5px; }
+        .nav-item:hover { background: #21262d; }
+        .trade-item { border-bottom: 1px solid #333; padding: 10px; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="card">
-            <h2>📈 परफॉर्मन्स ग्राफ (Equity Curve)</h2>
-            <div class="filter-btns">
-                <button onclick="updateChart('trade')" id="btn-trade" class="active">Trade</button>
-                <button onclick="updateChart('day')" id="btn-day">Day</button>
-                <button onclick="updateChart('month')" id="btn-month">Month</button>
-                <button onclick="updateChart('year')" id="btn-year">Year</button>
-            </div>
-            <canvas id="equityChart"></canvas>
-        </div>
+    <div class="sidebar">
+        <h3>OneFeb AI</h3>
+        <div class="nav-item" onclick="showPage('p1')">📝 Journal Entry</div>
+        <div class="nav-item" onclick="showPage('p2')">📜 History</div>
+        <div class="nav-item" onclick="showPage('p3')">📈 Analytics</div>
+    </div>
 
-        <div class="card">
-            <h2>📝 नवीन ट्रेड नोंदवा</h2>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <input type="text" id="symbol" placeholder="Symbol (उदा. Gold)">
+    <div class="main">
+        <div id="p1" class="page active">
+            <div class="card">
+                <h2>📝 New Trade Entry</h2>
+                <input type="text" id="symbol" placeholder="Symbol (Gold/Nifty)">
+                <input type="number" id="capital" placeholder="Capital Used">
                 <input type="number" id="entry" placeholder="Entry Price">
-                <input type="number" id="exit" placeholder="Exit Price">
-                <input type="number" id="sl" placeholder="Stop Loss">
-                <input type="number" id="tp" placeholder="Take Profit">
+                <div id="exit-list">
+                    <div style="display: flex; gap: 5px;">
+                        <input type="number" class="ex-p" placeholder="Exit Price">
+                        <input type="number" class="ex-q" placeholder="Qty">
+                    </div>
+                </div>
+                <button onclick="addExitField()" style="width: auto;">+ Exit Point</button>
+                <input type="text" id="strategy" placeholder="Strategy Name">
+                <button onclick="saveTrade()" style="background: #238636; border: none;">Save Trade</button>
             </div>
-            <textarea id="reason" placeholder="ट्रेड घेण्याचे कारण..."></textarea>
-            <button onclick="saveTrade()">ट्रेड सेव्ह करा</button>
         </div>
 
-        <div class="card" style="background: #e7f3ff; border-left: 5px solid #1a73e8;">
-            <h3>🤖 OneFeb AI सल्ला:</h3>
-            <p id="ai-advice">विश्लेषण लोड होत आहे...</p>
+        <div id="p2" class="page">
+            <div class="card">
+                <h2>📜 Trade History</h2>
+                <div id="history-list">Loading...</div>
+            </div>
+        </div>
+
+        <div id="p3" class="page">
+            <div class="card">
+                <h2>📈 Equity Curve</h2>
+                <canvas id="equityChart"></canvas>
+            </div>
+            <div class="card" style="background: #1c2128;">
+                <h3>🤖 AI Salla:</h3>
+                <p id="ai-advice">Loading advice...</p>
+            </div>
         </div>
     </div>
 
     <script>
-        const API = "https://ai-trading-journal.onrender.com";
-        let allTrades = [];
-        let myChart;
+        const API = ""; // Base URL
+
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'p2') loadHistory();
+            if(id === 'p3') loadAnalytics();
+        }
+
+        function addExitField() {
+            const div = document.createElement('div');
+            div.style.display = "flex"; div.style.gap = "5px";
+            div.innerHTML = `<input type="number" class="ex-p" placeholder="Exit Price"><input type="number" class="ex-q" placeholder="Qty">`;
+            document.getElementById('exit-list').appendChild(div);
+        }
 
         async function saveTrade() {
+            const exits = [];
+            const prices = document.querySelectorAll('.ex-p');
+            const qtys = document.querySelectorAll('.ex-q');
+            prices.forEach((p, i) => exits.push({price: p.value, qty: qtys[i].value}));
+
             const data = {
                 symbol: document.getElementById('symbol').value,
-                entry_price: parseFloat(document.getElementById('entry').value),
-                exit_price: parseFloat(document.getElementById('exit').value),
-                stop_loss: parseFloat(document.getElementById('sl').value),
-                take_profit: parseFloat(document.getElementById('tp').value),
-                reason: document.getElementById('reason').value
+                capital: document.getElementById('capital').value,
+                entry: document.getElementById('entry').value,
+                exits: exits,
+                strategy: document.getElementById('strategy').value
             };
-            await fetch(`${API}/add_trade`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            alert("ट्रेड जतन झाला!");
+
+            await fetch(`/add_trade_v2`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            alert("Trade Saved!");
             location.reload();
         }
 
-        async function loadData() {
-            const res = await fetch(`${API}/history`);
-            allTrades = await res.json();
-            updateChart('trade');
-            
-            const aiRes = await fetch(`${API}/get_ai_advice`);
-            const aiData = await aiRes.json();
-            document.getElementById('ai-advice').innerText = aiData.advice;
+        async function loadHistory() {
+            const res = await fetch(`/history_v2`);
+            const trades = await res.json();
+            document.getElementById('history-list').innerHTML = trades.map(t => `
+                <div class="trade-item">
+                    <span><b>${t.symbol}</b><br><small>${t.strategy}</small></span>
+                    <span style="color: ${t.total_pl >=0 ? '#3fb950':'#f85149'}">${t.total_pl}</span>
+                </div>
+            `).join('');
         }
 
-        function updateChart(type) {
-            document.querySelectorAll('.filter-btns button').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-' + type).classList.add('active');
+        async function loadAnalytics() {
+            const res = await fetch(`/history_v2`);
+            const trades = await res.json();
+            const aiRes = await fetch(`/ai_mentor_advice`);
+            const aiData = await aiRes.json();
+            document.getElementById('ai-advice').innerText = aiData.advice;
 
-            let labels = [];
-            let dataPoints = [0]; // 0 पासून सुरुवात
-            let currentSum = 0;
+            let sum = 0;
+            const dataPoints = [0];
+            trades.reverse().forEach(t => { sum += t.total_pl; dataPoints.push(sum); });
 
-            if (type === 'trade') {
-                allTrades.forEach((t, i) => {
-                    currentSum += t.profit_loss;
-                    dataPoints.push(currentSum);
-                    labels.push("Trade " + (i + 1));
-                });
-            } else {
-                // Day, Month, Year नुसार ग्रुपिंग लॉजिक
-                let grouped = {};
-                allTrades.forEach(t => {
-                    let key = t.date; // Default Day
-                    if(type === 'month') key = t.date.substring(0, 7);
-                    if(type === 'year') key = t.date.substring(0, 4);
-                    grouped[key] = (grouped[key] || 0) + t.profit_loss;
-                });
-                Object.keys(grouped).sort().forEach(key => {
-                    currentSum += grouped[key];
-                    dataPoints.push(currentSum);
-                    labels.push(key);
-                });
-            }
-
-            if(myChart) myChart.destroy();
-            const ctx = document.getElementById('equityChart').getContext('2d');
-            myChart = new Chart(ctx, {
+            new Chart(document.getElementById('equityChart'), {
                 type: 'line',
                 data: {
-                    labels: ["Start", ...labels],
-                    datasets: [{
-                        label: 'Cumulative P/L',
-                        data: dataPoints,
-                        borderColor: '#1a73e8',
-                        backgroundColor: 'rgba(26, 115, 232, 0.1)',
-                        fill: true,
-                        tension: 0.3
-                    }]
+                    labels: dataPoints.map((_, i) => i),
+                    datasets: [{ label: 'Equity', data: dataPoints, borderColor: '#58a6ff', tension: 0.2 }]
                 }
             });
         }
-        window.onload = loadData;
     </script>
 </body>
 </html>
